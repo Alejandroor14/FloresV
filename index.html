@@ -1,131 +1,307 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-<meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>Corazón de flores amarillas</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flores Amarillas 🌻</title>
 <style>
-  body {
-    font-family: Arial, sans-serif;
-    background: #faf3e6;
-    margin: 0;
+* { margin:0; padding:0; box-sizing:border-box; }
+
+body {
+    height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #fdf5e6;
+    overflow: hidden;
+}
+
+.container {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
-    padding-top: 20px;
-  }
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
 
-  button {
-    margin-bottom: 20px;
-    padding: 10px 20px;
-    font-size: 1rem;
-    background: #ffbb00;
+#playButton {
+    padding: 14px 32px;
+    font-size: 1.2rem;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #5d3311;
+    font-weight: bold;
     border: none;
-    border-radius: 4px;
+    border-radius: 50px;
     cursor: pointer;
-  }
-
-  .tree-trunk {
-    width: 30px;
-    height: 80px;
-    background: #7d4a1a;
-    margin: 0 auto;
-  }
-
-  .heart-shape {
-    position: relative;
-    width: 250px;
-    height: 220px;
-    margin-bottom: 20px;
-  }
-
-  .flower {
+    box-shadow: 0 4px 20px rgba(255,165,0,0.5);
+    transition: transform 0.2s, opacity 0.8s;
     position: absolute;
-    width: 15px;
-    height: 15px;
-    background: radial-gradient(circle at center, #ffec47 40%, #9b6f2a 90%);
-    border-radius: 50%;
+    z-index: 10;
+}
+#playButton:hover { transform: scale(1.06); }
+#playButton.oculto { opacity:0; pointer-events:none; }
+
+canvas {
+    display: block;
     opacity: 0;
-    transform: scale(0.3);
-    transition: opacity 0.4s ease, transform 0.5s ease;
-    box-shadow: 0 0 4px 1px #f9da5a;
-  }
+    transition: opacity 0.6s ease;
+}
+canvas.visible { opacity: 1; }
 
-  .flower::before {
-    content: "";
+#mensaje {
     position: absolute;
-    top: 5px;
-    left: 5px;
-    width: 5px;
-    height: 5px;
-    background: #7a4809;
+    bottom: 6%;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: 1.35rem;
+    letter-spacing: 3px;
+    color: #c8960c;
+    opacity: 0;
+    transition: opacity 2s ease;
+    text-align: center;
+}
+#mensaje.visible { opacity: 1; }
+
+.particula {
+    position: fixed;
+    bottom: -12px;
     border-radius: 50%;
-  }
-
-  .flower.show {
-    opacity: 1;
-    transform: scale(1);
-  }
-
-  /* posición en forma de corazón aproximado */
-  /* Las posiciones se definen en porcentaje respecto al contenedor corazón */
+    background: #FFD700;
+    pointer-events: none;
+    animation: flotar linear forwards;
+}
+@keyframes flotar {
+    0%   { transform: translateY(0) scale(1); opacity: 1; }
+    100% { transform: translateY(-105vh) scale(0.3); opacity: 0; }
+}
 </style>
 </head>
 <body>
-
-<button id="startAnim">Iniciar Animación</button>
-
-<div class="heart-shape" aria-label="Corazón formado por flores amarillas">
-
-  <div class="tree-trunk"></div>
-
-  <!-- Aquí se generarán flores vía JS -->
-
+<div class="container">
+    <button id="playButton">Presiona aquí 🌻</button>
+    <canvas id="c"></canvas>
+    <div id="mensaje">Para alguien especial ✨</div>
 </div>
 
 <script>
-  const heartShape = document.querySelector('.heart-shape');
-  const startBtn = document.getElementById('startAnim');
+(function(){
+    const btn  = document.getElementById('playButton');
+    const cv   = document.getElementById('c');
+    const ctx  = cv.getContext('2d');
+    const msg  = document.getElementById('mensaje');
 
-  // Coordenadas aproximadas para posicionar las flores en la forma de corazón
-  const flowerPositions = [
-    {x: 50, y: 10}, {x: 42, y: 20}, {x: 58, y: 20},
-    {x: 35, y: 35}, {x: 65, y: 35},
-    {x: 27, y: 50}, {x: 73, y: 50},
-    {x: 20, y: 70}, {x: 80, y: 70},
-    {x: 32, y: 85}, {x: 68, y: 85},
-    {x: 43, y: 90}, {x: 57, y: 90},
-    {x: 50, y: 75}, {x: 50, y: 50},
-    // Puedes agregar más para más densidad
-  ];
+    /* ── Tamaño responsivo ─────────────────────────────── */
+    const W = Math.min(window.innerWidth,  420);
+    const H = Math.min(window.innerHeight, 680);
+    cv.width  = W;
+    cv.height = H;
 
-  // Crear flores y posicionarlas ocultas
-  flowerPositions.forEach(pos => {
-    const flower = document.createElement('div');
-    flower.classList.add('flower');
-    flower.style.left = pos.x + '%';
-    flower.style.top = pos.y + '%';
-    heartShape.appendChild(flower);
-  });
+    /* ── Parámetros de posición ────────────────────────── */
+    const TRUNK_X  = W / 2;
+    const TRUNK_Y  = H - 40;          // base del tronco
+    const TRUNK_H  = H * 0.18;        // altura del tronco
+    const HEART_CX = W / 2;
+    // Centro del corazón: arriba del tronco
+    const HEART_CY = TRUNK_Y - TRUNK_H - H * 0.27;
+    const HEART_RX = W  * 0.40;       // radio horizontal
+    const HEART_RY = H  * 0.26;       // radio vertical
+    const FLOWER_R = W  * 0.026;      // radio de cada flor
 
-  // Animar flores con retraso en la aparición
-  function animateFlowers() {
-    const flowers = document.querySelectorAll('.flower');
-    flowers.forEach((f, i) => {
-      setTimeout(() => {
-        f.classList.add('show');
-      }, i * 150);
+    /* ══════════════════════════════════════════════════════
+       1. TRONCO
+    ══════════════════════════════════════════════════════ */
+    function dibujarTronco(progreso) {
+        const h = TRUNK_H * progreso;
+        const grad = ctx.createLinearGradient(TRUNK_X - 14, 0, TRUNK_X + 14, 0);
+        grad.addColorStop(0,   '#4a2a0a');
+        grad.addColorStop(0.4, '#8b4513');
+        grad.addColorStop(1,   '#5d3311');
+        ctx.fillStyle = grad;
+        ctx.beginPath();
+        ctx.roundRect(TRUNK_X - 13, TRUNK_Y - h, 26, h, [0, 0, 6, 6]);
+        ctx.fill();
+    }
+
+    /* ══════════════════════════════════════════════════════
+       2. RAMAS FRACTAL
+    ══════════════════════════════════════════════════════ */
+    function ramas(x, y, len, ang, prof, gw) {
+        if (prof === 0 || len < 4) return;
+        const ex = x + Math.sin(ang) * len;
+        const ey = y - Math.cos(ang) * len;
+        ctx.beginPath();
+        ctx.moveTo(x, y);
+        ctx.lineTo(ex, ey);
+        ctx.strokeStyle = prof > 3 ? '#4B3621' : '#7a5533';
+        ctx.lineWidth   = gw;
+        ctx.lineCap     = 'round';
+        ctx.stroke();
+        const sp = 0.38 + Math.random() * 0.10;
+        ramas(ex, ey, len * 0.70, ang - sp, prof-1, gw * 0.66);
+        ramas(ex, ey, len * 0.70, ang + sp, prof-1, gw * 0.66);
+        if (prof > 3)
+            ramas(ex, ey, len * 0.55, ang + (Math.random()-.5)*.25, prof-2, gw*.50);
+    }
+
+    /* ══════════════════════════════════════════════════════
+       3. FLOR GIRASOL
+    ══════════════════════════════════════════════════════ */
+    function flor(x, y, r, alpha) {
+        ctx.save();
+        ctx.globalAlpha = alpha;
+        ctx.translate(x, y);
+
+        // 8 pétalos elípticos dorados
+        const nPetalos = 8;
+        ctx.fillStyle = '#F5C518';
+        for (let i = 0; i < nPetalos; i++) {
+            const a = (i / nPetalos) * Math.PI * 2;
+            ctx.save();
+            ctx.rotate(a);
+            ctx.beginPath();
+            ctx.ellipse(0, -r * 1.55, r * 0.42, r * 0.85, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        // Pétalos secundarios (45°) más pequeños
+        ctx.fillStyle = '#e8b800';
+        for (let i = 0; i < nPetalos; i++) {
+            const a = ((i + 0.5) / nPetalos) * Math.PI * 2;
+            ctx.save();
+            ctx.rotate(a);
+            ctx.beginPath();
+            ctx.ellipse(0, -r * 1.35, r * 0.28, r * 0.60, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+        // Centro marrón oscuro
+        ctx.beginPath();
+        ctx.arc(0, 0, r * 0.65, 0, Math.PI * 2);
+        const cg = ctx.createRadialGradient(-r*.15, -r*.15, 0, 0, 0, r*.65);
+        cg.addColorStop(0,   '#5a2d00');
+        cg.addColorStop(0.6, '#2c1503');
+        cg.addColorStop(1,   '#1a0a00');
+        ctx.fillStyle = cg;
+        ctx.fill();
+
+        ctx.restore();
+    }
+
+    /* ══════════════════════════════════════════════════════
+       4. ECUACIÓN IMPLÍCITA DEL CORAZÓN
+       (x²+y²-1)³ - x²·y³ ≤ 0  (ejes matemáticos)
+    ══════════════════════════════════════════════════════ */
+    function enCorazon(px, py) {
+        const nx =  (px - HEART_CX) / HEART_RX;
+        const ny = -(py - HEART_CY) / HEART_RY;   // invertir Y
+        return Math.pow(nx*nx + ny*ny - 1, 3) - nx*nx * Math.pow(ny, 3) <= 0;
+    }
+
+    /* ══════════════════════════════════════════════════════
+       5. GENERAR CUADRÍCULA DE FLORES
+    ══════════════════════════════════════════════════════ */
+    function generarFlores() {
+        const puntos = [];
+        const paso   = FLOWER_R * 2.1;   // separación entre flores
+        const jitter = paso * 0.35;
+
+        for (let px = FLOWER_R; px < W - FLOWER_R; px += paso) {
+            for (let py = FLOWER_R; py < H - FLOWER_R; py += paso) {
+                const jx = px + (Math.random() - .5) * jitter;
+                const jy = py + (Math.random() - .5) * jitter;
+                if (enCorazon(jx, jy)) {
+                    puntos.push({ x: jx, y: jy });
+                }
+            }
+        }
+        // Mezcla aleatoria para efecto de aparición mágica
+        return puntos.sort(() => Math.random() - .5);
+    }
+
+    /* ══════════════════════════════════════════════════════
+       6. ANIMACIÓN PRINCIPAL
+    ══════════════════════════════════════════════════════ */
+    function animarTronco(cb) {
+        let prog = 0;
+        function tick() {
+            ctx.clearRect(TRUNK_X - 20, TRUNK_Y - TRUNK_H - 5, 40, TRUNK_H + 10);
+            dibujarTronco(prog);
+            prog += 0.022;
+            if (prog < 1) requestAnimationFrame(tick);
+            else { dibujarTronco(1); cb(); }
+        }
+        tick();
+    }
+
+    function animarRamas(cb) {
+        // Semilla fija para reproducibilidad visual
+        ramas(TRUNK_X, TRUNK_Y - TRUNK_H, H * 0.14, 0, 8, 5.5);
+        setTimeout(cb, 200);
+    }
+
+    function animarFloresAparecer(cb) {
+        const puntos = generarFlores();
+        const total  = puntos.length;
+        // Velocidad: terminar en ~2.5 segundos
+        const lote   = Math.max(1, Math.ceil(total / 90));
+        let i = 0;
+
+        function tick() {
+            for (let b = 0; b < lote && i < total; b++, i++) {
+                flor(puntos[i].x, puntos[i].y, FLOWER_R, 1);
+            }
+            if (i < total) requestAnimationFrame(tick);
+            else cb();
+        }
+        tick();
+    }
+
+    /* ══════════════════════════════════════════════════════
+       7. PARTÍCULAS
+    ══════════════════════════════════════════════════════ */
+    function particulas() {
+        for (let i = 0; i < 40; i++) {
+            const p   = document.createElement('div');
+            p.classList.add('particula');
+            const sz  = 5 + Math.random() * 8;
+            p.style.cssText = `
+                width:${sz}px; height:${sz}px;
+                left:${Math.random()*100}vw;
+                animation-duration:${2 + Math.random()*3}s;
+                animation-delay:${Math.random()*1.5}s;
+            `;
+            document.body.appendChild(p);
+            setTimeout(() => p.remove(), 6000);
+        }
+    }
+
+    /* ══════════════════════════════════════════════════════
+       8. INICIO
+    ══════════════════════════════════════════════════════ */
+    let iniciado = false;
+    btn.addEventListener('click', () => {
+        if (iniciado) return;
+        iniciado = true;
+
+        btn.classList.add('oculto');
+        cv.classList.add('visible');
+
+        // Secuencia: tronco → ramas → flores → mensaje
+        animarTronco(() => {
+            animarRamas(() => {
+                animarFloresAparecer(() => {
+                    setTimeout(() => {
+                        msg.classList.add('visible');
+                        particulas();
+                    }, 300);
+                });
+            });
+        });
     });
-  }
 
-  // Al hacer click en el botón, iniciar animación
-  startBtn.addEventListener('click', () => {
-    // Remover clase para reiniciar animación si se quiere repetir
-    document.querySelectorAll('.flower').forEach(fl => fl.classList.remove('show'));
-    setTimeout(animateFlowers, 100);
-  });
-
+})();
 </script>
-
 </body>
 </html>
