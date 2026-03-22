@@ -12,7 +12,7 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    background: #fdf5e6;
+    background: #c8a2c8;
     overflow: hidden;
 }
 
@@ -50,36 +50,110 @@ canvas {
 }
 canvas.visible { opacity: 1; }
 
+#titulo {
+    position: absolute;
+    top: 5%;
+    width: 100%;
+    font-family: 'Georgia', serif;
+    font-style: italic;
+    font-size: 1.7rem;
+    letter-spacing: 2px;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(120,0,120,0.3);
+    opacity: 0;
+    transition: opacity 2s ease;
+    text-align: center;
+}
+#titulo.visible { opacity: 1; }
+
 #mensaje {
     position: absolute;
     bottom: 6%;
     font-family: 'Georgia', serif;
     font-style: italic;
-    font-size: 1.35rem;
+    font-size: 1.8rem;
     letter-spacing: 3px;
-    color: #c8960c;
+    color: #fff;
+    text-shadow: 0 2px 8px rgba(120,0,120,0.3);
     opacity: 0;
     transition: opacity 2s ease;
     text-align: center;
 }
 #mensaje.visible { opacity: 1; }
 
-.particula {
+.florCayendo {
     position: fixed;
-    bottom: -12px;
-    border-radius: 50%;
-    background: #FFD700;
     pointer-events: none;
-    animation: flotar linear forwards;
+    animation: caer linear forwards;
 }
-@keyframes flotar {
-    0%   { transform: translateY(0) scale(1); opacity: 1; }
-    100% { transform: translateY(-105vh) scale(0.3); opacity: 0; }
+@keyframes caer {
+    0%   { transform: translateY(-20px) rotate(0deg);   opacity: 1; }
+    80%  { opacity: 1; }
+    100% { transform: translateY(105vh) rotate(360deg); opacity: 0; }
 }
-</style>
+/* ── MODAL ADVERTENCIA ── */
+#modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+}
+#modal-box {
+    background: #fffde7;
+    border: 2px solid #e0d080;
+    border-radius: 18px;
+    padding: 32px 28px 24px;
+    max-width: 82%;
+    text-align: center;
+    box-shadow: 4px 6px 20px rgba(0,0,0,0.25);
+    font-family: 'Georgia', serif;
+    position: relative;
+}
+#modal-box::before {
+    content: '';
+    position: absolute;
+    top: -2px; left: 50%;
+    transform: translateX(-50%);
+    width: 60px; height: 10px;
+    background: #FFD700;
+    border-radius: 0 0 8px 8px;
+}
+#modal-box p {
+    font-size: 1.05rem;
+    color: #4a3000;
+    line-height: 1.6;
+    margin-bottom: 22px;
+    font-style: italic;
+}
+#modal-cerrar {
+    padding: 10px 30px;
+    background: linear-gradient(135deg, #FFD700, #FFA500);
+    color: #5d3311;
+    font-weight: bold;
+    font-size: 1rem;
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    box-shadow: 0 3px 10px rgba(255,165,0,0.4);
+    transition: transform 0.2s;
+}
+#modal-cerrar:hover { transform: scale(1.05); }
+
 </head>
 <body>
+<!-- MODAL ADVERTENCIA -->
+<div id="modal-overlay">
+    <div id="modal-box">
+        <p>Holaaa, la verdad me hubiera gustado hacerlo de otra manera, pero bueno ésta es una alternativa jajajaja &lt;3</p>
+        <button id="modal-cerrar">Cerrar</button>
+    </div>
+</div>
+
 <div class="container">
+    <div id="titulo">Te quiero My friend 💛</div>
     <button id="playButton">Presiona aquí 🌻</button>
     <canvas id="c"></canvas>
     <div id="mensaje">Para alguien especial ✨</div>
@@ -87,10 +161,16 @@ canvas.visible { opacity: 1; }
 
 <script>
 (function(){
+    // Modal de advertencia
+    document.getElementById('modal-cerrar').addEventListener('click', () => {
+        document.getElementById('modal-overlay').style.display = 'none';
+    });
+
     const btn  = document.getElementById('playButton');
     const cv   = document.getElementById('c');
     const ctx  = cv.getContext('2d');
     const msg  = document.getElementById('mensaje');
+    const tit  = document.getElementById('titulo');
 
     /* ── Tamaño responsivo ─────────────────────────────── */
     const W = Math.min(window.innerWidth,  420);
@@ -110,39 +190,176 @@ canvas.visible { opacity: 1; }
     const FLOWER_R = W  * 0.026;      // radio de cada flor
 
     /* ══════════════════════════════════════════════════════
-       1. TRONCO
+       0. ÁREA VERDE CON FLORES PLANTADAS
     ══════════════════════════════════════════════════════ */
-    function dibujarTronco(progreso) {
-        const h = TRUNK_H * progreso;
-        const grad = ctx.createLinearGradient(TRUNK_X - 14, 0, TRUNK_X + 14, 0);
-        grad.addColorStop(0,   '#4a2a0a');
-        grad.addColorStop(0.4, '#8b4513');
-        grad.addColorStop(1,   '#5d3311');
-        ctx.fillStyle = grad;
+    function dibujarSuelo() {
+        const sueloY = TRUNK_Y;
+        const sueloH = H * 0.14;        // más alta
+        const sueloW = W * 1.0;         // ancho completo
+        const sueloX = 0;
+
+        // Área verde degradada (pasto) — elipse más grande
+        const gSuelo = ctx.createLinearGradient(0, sueloY - sueloH, 0, sueloY + 10);
+        gSuelo.addColorStop(0,   '#66bb6a');
+        gSuelo.addColorStop(0.4, '#4caf50');
+        gSuelo.addColorStop(0.75,'#388e3c');
+        gSuelo.addColorStop(1,   '#2e7d32');
+        ctx.fillStyle = gSuelo;
         ctx.beginPath();
-        ctx.roundRect(TRUNK_X - 13, TRUNK_Y - h, 26, h, [0, 0, 6, 6]);
+        ctx.ellipse(W/2, sueloY + 8, sueloW/2, sueloH * 0.7, 0, 0, Math.PI * 2);
         ctx.fill();
+
+        // Segunda capa más oscura para profundidad
+        const gSuelo2 = ctx.createLinearGradient(0, sueloY, 0, sueloY + 14);
+        gSuelo2.addColorStop(0, '#2e7d32');
+        gSuelo2.addColorStop(1, '#1b5e20');
+        ctx.fillStyle = gSuelo2;
+        ctx.beginPath();
+        ctx.ellipse(W/2, sueloY + 10, sueloW/2 * 0.9, sueloH * 0.3, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        // Briznas de pasto — más densas
+        for (let gx = 4; gx < W - 4; gx += 5) {
+            const distCentro = Math.abs(gx - W/2) / (W/2);
+            if (distCentro > 0.95) continue;
+            const altMax = sueloH * (0.55 - distCentro * 0.4);
+            const gy = sueloY - Math.random() * altMax;
+            const color = Math.random() > 0.5 ? '#81c784' : '#a5d6a7';
+            ctx.beginPath();
+            ctx.moveTo(gx, sueloY + 2);
+            ctx.quadraticCurveTo(
+                gx + (Math.random()-0.5)*7,
+                gy + altMax * 0.3,
+                gx + (Math.random()-0.5)*6,
+                gy
+            );
+            ctx.strokeStyle = color;
+            ctx.lineWidth = 1 + Math.random() * 0.8;
+            ctx.stroke();
+        }
+
+        // Flores pequeñas — 45 flores distribuidas
+        const coloresFlor = [
+            { p:'#ff4081', c:'#ffff00' },
+            { p:'#ff6d00', c:'#fff9c4' },
+            { p:'#e040fb', c:'#ffeb3b' },
+            { p:'#ffffff', c:'#ffd600' },
+            { p:'#f48fb1', c:'#fff176' },
+            { p:'#b2ff59', c:'#ff6f00' },
+            { p:'#40c4ff', c:'#fff59d' },
+            { p:'#ff80ab', c:'#f9a825' },
+            { p:'#ea80fc', c:'#ffffff' },
+            { p:'#ccff90', c:'#e65100' },
+        ];
+
+        const nFlores = 45;
+        for (let f = 0; f < nFlores; f++) {
+            const t   = f / nFlores;
+            // Distribuir en toda la zona verde con jitter
+            const fx  = 10 + t * (W - 20) + (Math.random()-0.5) * 18;
+            const distCentro = Math.abs(fx - W/2) / (W/2);
+            if (distCentro > 0.96) continue;
+
+            const altMax  = sueloH * (0.75 - distCentro * 0.35);
+            const talloH  = altMax * (0.4 + Math.random() * 0.6);
+            const fy      = sueloY - talloH;
+            const col     = coloresFlor[f % coloresFlor.length];
+            const r       = 2.5 + Math.random() * 2.8;
+
+            // Tallo
+            ctx.beginPath();
+            ctx.moveTo(fx, sueloY - 2);
+            ctx.quadraticCurveTo(
+                fx + (Math.random()-0.5)*6,
+                sueloY - talloH * 0.55,
+                fx, fy
+            );
+            ctx.strokeStyle = '#388e3c';
+            ctx.lineWidth   = 0.9 + Math.random() * 0.6;
+            ctx.stroke();
+
+            // Pétalos (6)
+            ctx.fillStyle = col.p;
+            for (let p = 0; p < 6; p++) {
+                const a = (p / 6) * Math.PI * 2;
+                ctx.beginPath();
+                ctx.ellipse(
+                    fx + Math.cos(a) * r * 1.5,
+                    fy + Math.sin(a) * r * 1.5,
+                    r * 0.85, r * 0.38, a, 0, Math.PI * 2
+                );
+                ctx.fill();
+            }
+            // Centro
+            ctx.beginPath();
+            ctx.arc(fx, fy, r * 0.52, 0, Math.PI * 2);
+            ctx.fillStyle = col.c;
+            ctx.fill();
+        }
+    }
+
+    
+    function dibujarTronco(progreso) {
+        const base  = TRUNK_Y;
+        const top   = TRUNK_Y - TRUNK_H;
+        // Interpolamos hasta dónde llega el tronco según progreso
+        const tipY  = base - TRUNK_H * progreso;
+        const tipX  = TRUNK_X + 4 * progreso; // leve curva hacia la derecha
+
+        const grad = ctx.createLinearGradient(TRUNK_X - 8, 0, TRUNK_X + 8, 0);
+        grad.addColorStop(0,   '#3b1f08');
+        grad.addColorStop(0.5, '#7a4010');
+        grad.addColorStop(1,   '#4a2a0a');
+
+        ctx.save();
+        ctx.strokeStyle = grad;
+        ctx.lineWidth   = 20 * (1 - progreso * 0.3);
+        ctx.lineCap     = 'round';
+        ctx.lineJoin    = 'round';
+        ctx.beginPath();
+        // Tronco ligeramente curvo con bezier
+        ctx.moveTo(TRUNK_X, base);
+        ctx.bezierCurveTo(
+            TRUNK_X - 3, base - TRUNK_H * 0.35 * progreso,
+            TRUNK_X + 5, base - TRUNK_H * 0.65 * progreso,
+            tipX, tipY
+        );
+        ctx.stroke();
+        ctx.restore();
     }
 
     /* ══════════════════════════════════════════════════════
-       2. RAMAS FRACTAL
+       2. RAMAS ORGÁNICAS CURVAS (bezier, estilo natural)
     ══════════════════════════════════════════════════════ */
-    function ramas(x, y, len, ang, prof, gw) {
-        if (prof === 0 || len < 4) return;
-        const ex = x + Math.sin(ang) * len;
-        const ey = y - Math.cos(ang) * len;
+    function rama(x, y, len, ang, prof, gw) {
+        if (prof === 0 || len < 5) return;
+
+        // Punto final con leve curva aleatoria
+        const curva = (Math.random() - 0.5) * 0.4;
+        const ex = x + Math.sin(ang + curva * 0.5) * len;
+        const ey = y - Math.cos(ang + curva * 0.5) * len;
+
+        // Punto de control para bezier (curva orgánica)
+        const cx1 = x + Math.sin(ang - 0.15) * len * 0.5;
+        const cy1 = y - Math.cos(ang - 0.15) * len * 0.5;
+
         ctx.beginPath();
         ctx.moveTo(x, y);
-        ctx.lineTo(ex, ey);
-        ctx.strokeStyle = prof > 3 ? '#4B3621' : '#7a5533';
+        ctx.quadraticCurveTo(cx1, cy1, ex, ey);
+        ctx.strokeStyle = prof > 2 ? '#5a3010' : '#8a5530';
         ctx.lineWidth   = gw;
         ctx.lineCap     = 'round';
         ctx.stroke();
-        const sp = 0.38 + Math.random() * 0.10;
-        ramas(ex, ey, len * 0.70, ang - sp, prof-1, gw * 0.66);
-        ramas(ex, ey, len * 0.70, ang + sp, prof-1, gw * 0.66);
-        if (prof > 3)
-            ramas(ex, ey, len * 0.55, ang + (Math.random()-.5)*.25, prof-2, gw*.50);
+
+        const sp = 0.42 + Math.random() * 0.18;
+        rama(ex, ey, len * 0.68, ang - sp,                    prof-1, gw * 0.65);
+        rama(ex, ey, len * 0.68, ang + sp,                    prof-1, gw * 0.65);
+        if (prof > 2)
+            rama(ex, ey, len * 0.52, ang + (Math.random()-.5)*0.3, prof-2, gw * 0.5);
+    }
+
+    function ramas(x, y, len, ang, prof, gw) {
+        rama(x, y, len, ang, prof, gw);
     }
 
     /* ══════════════════════════════════════════════════════
@@ -226,7 +443,7 @@ canvas.visible { opacity: 1; }
     function animarTronco(cb) {
         let prog = 0;
         function tick() {
-            ctx.clearRect(TRUNK_X - 20, TRUNK_Y - TRUNK_H - 5, 40, TRUNK_H + 10);
+            ctx.clearRect(TRUNK_X - 18, TRUNK_Y - TRUNK_H - 5, 36, TRUNK_H + 10);
             dibujarTronco(prog);
             prog += 0.022;
             if (prog < 1) requestAnimationFrame(tick);
@@ -244,36 +461,82 @@ canvas.visible { opacity: 1; }
     function animarFloresAparecer(cb) {
         const puntos = generarFlores();
         const total  = puntos.length;
-        // Velocidad: terminar en ~2.5 segundos
-        const lote   = Math.max(1, Math.ceil(total / 90));
+        // Una flor cada ~(20000ms / total) para completar en 20 segundos
+        const intervalo = Math.max(15, Math.round(10000 / total));
         let i = 0;
 
-        function tick() {
-            for (let b = 0; b < lote && i < total; b++, i++) {
-                flor(puntos[i].x, puntos[i].y, FLOWER_R, 1);
-            }
-            if (i < total) requestAnimationFrame(tick);
-            else cb();
+        function siguiente() {
+            if (i >= total) { cb(); return; }
+            flor(puntos[i].x, puntos[i].y, FLOWER_R, 1);
+            i++;
+            setTimeout(siguiente, intervalo);
         }
-        tick();
+        siguiente();
     }
 
     /* ══════════════════════════════════════════════════════
        7. PARTÍCULAS
     ══════════════════════════════════════════════════════ */
     function particulas() {
-        for (let i = 0; i < 40; i++) {
-            const p   = document.createElement('div');
-            p.classList.add('particula');
-            const sz  = 5 + Math.random() * 8;
-            p.style.cssText = `
-                width:${sz}px; height:${sz}px;
-                left:${Math.random()*100}vw;
-                animation-duration:${2 + Math.random()*3}s;
-                animation-delay:${Math.random()*1.5}s;
+        const coloresFlor = [
+            { p:'#ff4081', c:'#ffff00' },
+            { p:'#ff6d00', c:'#fff9c4' },
+            { p:'#e040fb', c:'#ffeb3b' },
+            { p:'#ffffff', c:'#ffd600' },
+            { p:'#f48fb1', c:'#fff176' },
+            { p:'#b2ff59', c:'#ff6f00' },
+            { p:'#40c4ff', c:'#fff59d' },
+            { p:'#ff80ab', c:'#f9a825' },
+            { p:'#ea80fc', c:'#ffffff' },
+            { p:'#ccff90', c:'#e65100' },
+        ];
+
+        for (let i = 0; i < 35; i++) {
+            const col  = coloresFlor[i % coloresFlor.length];
+            const sz   = 18 + Math.random() * 16;   // tamaño del mini-canvas
+            const r    = sz * 0.22;                  // radio pétalo
+
+            // Mini canvas para dibujar la flor
+            const fc   = document.createElement('canvas');
+            fc.width   = sz;
+            fc.height  = sz;
+            const fctx = fc.getContext('2d');
+            const cx   = sz / 2, cy = sz / 2;
+
+            // Pétalos
+            fctx.fillStyle = col.p;
+            for (let p = 0; p < 6; p++) {
+                const a = (p / 6) * Math.PI * 2;
+                fctx.beginPath();
+                fctx.ellipse(
+                    cx + Math.cos(a) * r * 1.5,
+                    cy + Math.sin(a) * r * 1.5,
+                    r * 0.85, r * 0.38, a, 0, Math.PI * 2
+                );
+                fctx.fill();
+            }
+            // Centro
+            fctx.beginPath();
+            fctx.arc(cx, cy, r * 0.52, 0, Math.PI * 2);
+            fctx.fillStyle = col.c;
+            fctx.fill();
+
+            // Div contenedor
+            const d = document.createElement('div');
+            d.classList.add('florCayendo');
+            const dur   = 3 + Math.random() * 4;
+            const delay = Math.random() * 3;
+            d.style.cssText = `
+                left: ${Math.random() * 100}vw;
+                top: -${sz}px;
+                width: ${sz}px;
+                height: ${sz}px;
+                animation-duration: ${dur}s;
+                animation-delay: ${delay}s;
             `;
-            document.body.appendChild(p);
-            setTimeout(() => p.remove(), 6000);
+            d.appendChild(fc);
+            document.body.appendChild(d);
+            setTimeout(() => d.remove(), (dur + delay + 0.5) * 1000);
         }
     }
 
@@ -288,12 +551,16 @@ canvas.visible { opacity: 1; }
         btn.classList.add('oculto');
         cv.classList.add('visible');
 
+        // Primero el suelo, luego la secuencia
+        dibujarSuelo();
+
         // Secuencia: tronco → ramas → flores → mensaje
         animarTronco(() => {
             animarRamas(() => {
                 animarFloresAparecer(() => {
                     setTimeout(() => {
                         msg.classList.add('visible');
+                        tit.classList.add('visible');
                         particulas();
                     }, 300);
                 });
@@ -305,3 +572,4 @@ canvas.visible { opacity: 1; }
 </script>
 </body>
 </html>
+    
